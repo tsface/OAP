@@ -7,6 +7,7 @@
 * [Working with SQL Index](#Working-with-SQL-Index)
 * [Working with SQL Data Source Cache](#Working-with-SQL-Data-Source-Cache)
 * [Run TPC-DS Benchmark](#Run-TPC-DS-Benchmark)
+* [Other DCPMM Cache Usage Strategy](#Other-DCPMM-Cache-Usage-Strategy)
 
 
 ## Prerequisites
@@ -200,6 +201,176 @@ Data Source Cache can provide input data cache functionality to the executor. Wh
 
 #### Prerequisites
 
+- DCPMM hardwares are installed, formatted and mounted correctly on every cluster worker node. You will get a mounted directory to use if you have done this. Usually, the DCPMM on each socket will be mounted as a directory. For example, on a two sockets system, we may get two mounted directories named `/mnt/pmem0` and `/mnt/pmem1`.
+
+- For cache solution Vmemcahe/external cache, make sure [Vmemcache](https://github.com/pmem/vmemcache) library has been installed on every cluster worker node if vmemcache strategy is chosen for DCPM cache. You can follow the build/install steps from vmemcache website and make sure libvmemcache.so exist in '/lib64' directory in each worker node. You can download [vmemcache RPM package](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.1-spark-2.4.4/libvmemcache-0.8..rpm), and install it by running `rpm -i libvmemcache*.rpm`. Build and install step can refer to [build and install vmemcache](./Developer-Guide.md#build-and-install-vmemcache)
+
+
+#### Configure for NUMA
+
+1. Install `numactl` to bind the executor to the DCPMM device on the same NUMA node. 
+
+   ```yum install numactl -y ```
+
+2. Build Spark from source to enable numa-binding support. Refer to [enable-numa-binding-for-dcpmm-in-spark](./Developer-Guide.md#enable-numa-binding-for-dcpmm-in-spark).
+
+#### Configure for DCPMM 
+
+Create `persistent-memory.xml` in `$SPARK_HOME/conf/` if it doesn't exist. Use the following template and change the `initialPath` to your mounted paths for DCPMM devices. 
+
+```
+<persistentMemoryPool>
+  <!--The numa id-->
+  <numanode id="0">
+    <!--The initial path for Intel Optane DC persistent memory-->
+    <initialPath>/mnt/pmem0</initialPath>
+  </numanode>
+  <numanode id="1">
+    <initialPath>/mnt/pmem1</initialPath>
+  </numanode>
+</persistentMemoryPool>
+```
+
+#### Configure to enable DCPMM cache
+
+Make the following configuration changes in `$SPARK_HOME/conf/spark-defaults.conf`.
+
+```
+# 2x number of your worker nodes
+spark.executor.instances                                   6
+# enable numa
+spark.yarn.numa.enabled                                    true
+# Enable OAP jar in Spark
+spark.sql.extensions                  org.apache.spark.sql.OapExtensions
+# for parquet file format, enable binary cache
+spark.sql.oap.parquet.binary.cache.enabled      true
+# for ORC file format, enable binary cache
+spark.sql.oap.orc.binary.cache.enable           true
+# for ORC file format, disable ColumnVector cache
+spark.sql.oap.orc.data.cache.enable             false
+spark.oap.cache.strategy                                   vmem 
+spark.sql.oap.fiberCache.persistent.memory.initial.size    256g 
+# according to your cluster
+spark.sql.oap.cache.guardian.memory.size                   10g
+```
+
+***Add OAP absolute path to `.jar` file in `spark.executor.extraClassPath` and` spark.driver.extraClassPath`.***
+
+Change the values of `spark.executor.instances`, `spark.sql.oap.fiberCache.persistent.memory.initial.size`, and `spark.sql.oap.fiberCache.persistent.memory.reserved.size` to match your environment. 
+
+- `spark.executor.instances`: We suggest setting the value to 2X the number of worker nodes when NUMA binding is enabled. Each worker node runs two executors, each executor is bound to one of the two sockets, and accesses the corresponding DCPMM device on that socket.
+- `spark.sql.oap.fiberCache.persistent.memory.initial.size`: It is configured to the available DCPMM capacity to be used as data cache per exectutor.
+
+#### Verify DCPMM cache functionality
+
+After finishing configuration, restart Spark Thrift Server for the configuration changes to take effect. Start at step 2 of the [Use DRAM Cache](#use-dram-cache) guide to verify that cache is working correctly.
+
+Verify NUMA binding status by confirming keywords like `numactl --cpubind=1 --membind=1` contained in executor launch command.
+
+Check DCPMM cache size by checking disk space with `df -h`. For Guava/Non-evictable strategies, the command will show disk space usage increases along with workload execution. For vmemcache strategy, disk usage will reach the initial cache size once the DCPMM cache is initialized and will not change during workload execution.
+
+
+## Run TPC-DS Benchmark
+
+This section provides instructions and tools for running TPC-DS queries to evaluate the cache performance of various configurations. The TPC-DS suite has many queries and we select 9 I/O intensive queries to simplify performance evaluation.
+
+We created some tool scripts [OAP-TPCDS-TOOL.zip](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.1-spark-2.4.4/OAP-TPCDS-TOOL.zip) to simplify running the workload. If you are already familiar with TPC-DS data generation and running a TPC-DS tool suite, skip our tool and use the TPC-DS tool suite directly.
+
+### Prerequisites
+
+- Python 2.7+ is required on the working node. 
+
+### Prepare the Tool
+
+1. Download [OAP-TPCDS-TOOL.zip](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.1-spark-2.4.4/OAP-TPCDS-TOOL.zip) and unzip to a folder (for example, `OAP-TPCDS-TOOL` folder) on your working node. 
+2. Copy `OAP-TPCDS-TOOL/tools/tpcds-kits` to ALL worker nodes under the same folder (for example, `/home/oap/tpcds-kits`).
+
+### Generate TPC-DS Data
+
+1. Update the values for the following variables in `OAP-TPCDS-TOOL/scripts/tool.conf` based on your environment and needs.
+
+   - SPARK_HOME: Point to the Spark home directory of your Spark setup.
+   - TPCDS_KITS_DIR: The tpcds-kits directory you coped to the worker nodes in the above prepare process. For example, /home/oap/tpcds-kits
+   - NAMENODE_ADDRESS: Your HDFS Namenode address in the format of host:port.
+   - THRIFT_SERVER_ADDRESS: Your working node address on which you will run Thrift Server.
+   - DATA_SCALE: The data scale to be generated in GB
+   - DATA_FORMAT: The data file format. You can specify parquet or orc
+
+   For example:
+
+```
+export SPARK_HOME=/home/oap/spark-2.4.4
+export TPCDS_KITS_DIR=/home/oap/tpcds-kits
+export NAMENODE_ADDRESS=mynamenode:9000
+export THRIFT_SERVER_ADDRESS=mythriftserver
+export DATA_SCALE=2
+export DATA_FORMAT=parquet
+```
+
+2. Start data generation.
+
+   In the root directory of this tool (`OAP-TPCDS-TOOL`), run `scripts/run_gen_data.sh` to start the data generation process. 
+
+```
+cd OAP-TPCDS-TOOL
+sh ./scripts/run_gen_data.sh
+```
+
+   Once finished, the `$scale` data will be generated in the HDFS folder `genData$scale`. And a database called `tpcds$scale` will contain the TPC-DS tables.
+
+### Start Spark Thrift Server
+
+Start the Thrift Server in the tool root folder, which is the same folder you run data generation scripts. Use either the DCPMM or DRAM scrip to start the Thrift Server.
+
+#### Use DCPMM as Cache Media
+
+Update the configuration values in `scripts/spark_thrift_server_yarn_with_DCPMM.sh` to reflect your environment. 
+Normally, you need to update the following configuration values to cache to DCPMM.
+
+- --driver-memory
+- --executor-memory
+- --executor-cores
+- --conf spark.sql.oap.fiberCache.persistent.memory.initial.size
+- --conf spark.sql.oap.fiberCache.persistent.memory.reserved.size
+
+These settings will override the values specified in Spark configuration file ( `spark-defaults.conf`). After the configuration is done, you can execute the following command to start Thrift Server.
+
+```
+cd OAP-TPCDS-TOOL
+sh ./scripts/spark_thrift_server_yarn_with_DCPMM.sh start
+```
+In this script, we use `guava` as cache strategy for ColumerVecor cache. you can alter to Binary cache. Or you can use `vmem` as cache strategy for ColumnVector or Binary cache, then follow above corresponding instructions to config rightly.
+
+#### Use DRAM as Cache Media 
+
+Update the configuration values in `scripts/spark_thrift_server_yarn_with_DRAM.sh` to reflect your environment. Normally, you need to update the following configuration values to cache to DRAM.
+
+- --driver-memory
+- --executor-memory
+- --executor-cores
+- --conf spark.sql.oap.fiberCache.offheap.memory.size
+- --conf spark.executor.memoryOverhead
+
+These settings will override the values specified in Spark configuration file (`spark-defaults.conf`). After the configuration is done, you can execute the following command to start Thrift Server.
+
+```
+cd OAP-TPCDS-TOOL
+sh ./scripts/spark_thrift_server_yarn_with_DRAM.sh  start
+```
+
+### Run Queries
+
+Execute the following command to start to run queries.
+
+```
+cd OAP-TPCDS-TOOL
+sh ./scripts/run_tpcds.sh
+```
+
+When all the queries are done, you will see the `result.json` file in the current directory.
+
+## Other DCPMM Cache Usage Strategy
+
 The following are required to configure OAP to use DCPMM cache.
 - DCPMM hardware is successfully deployed on each node in cluster.
 - Directories exposing DCPMM hardware on each socket. For example, on a two socket system the mounted DCPMM directories should appear as `/mnt/pmem0` and `/mnt/pmem1`. Correctly installed DCPMM must be formatted and mounted on every cluster worker node.
@@ -245,58 +416,6 @@ Socket configuration -> Intel UPI General configuration -> Stale Atos :  Disable
  
 Or you can refer to [Developer-Guide](../../../docs/Developer-Guide.md), there is a shell script to help you install these dependencies automatically.
 
-#### Configure for NUMA
-
-1. Install `numactl` to bind the executor to the DCPMM device on the same NUMA node. 
-
-   ```yum install numactl -y ```
-
-2. Build Spark from source to enable numa-binding support. Refer to [enable-numa-binding-for-dcpmm-in-spark](./Developer-Guide.md#enable-numa-binding-for-dcpmm-in-spark).
-
-#### Configure for DCPMM 
-
-Create `persistent-memory.xml` in `$SPARK_HOME/conf/` if it doesn't exist. Use the following template and change the `initialPath` to your mounted paths for DCPMM devices. 
-
-```
-<persistentMemoryPool>
-  <!--The numa id-->
-  <numanode id="0">
-    <!--The initial path for Intel Optane DC persistent memory-->
-    <initialPath>/mnt/pmem0</initialPath>
-  </numanode>
-  <numanode id="1">
-    <initialPath>/mnt/pmem1</initialPath>
-  </numanode>
-</persistentMemoryPool>
-```
-
-#### Configure to enable DCPMM cache
-
-Make the following configuration changes in `$SPARK_HOME/conf/spark-defaults.conf`.
-
-```
-# 2x number of your worker nodes
-spark.executor.instances                                   6
-# enable numa
-spark.yarn.numa.enabled                                    true
-spark.executorEnv.MEMKIND_ARENA_NUM_PER_KIND               1
-spark.memory.offHeap.enabled                               false
-spark.speculation                                          false
-# DCPM capacity per executor
-spark.sql.oap.fiberCache.persistent.memory.initial.size    256g
-# Reserved space per executor
-spark.sql.oap.fiberCache.persistent.memory.reserved.size   50g
-# Enable OAP jar in Spark
-spark.sql.extensions                  org.apache.spark.sql.OapExtensions
-```
-
-***Add OAP absolute path to `.jar` file in `spark.executor.extraClassPath` and` spark.driver.extraClassPath`.***
-
-Change the values of `spark.executor.instances`, `spark.sql.oap.fiberCache.persistent.memory.initial.size`, and `spark.sql.oap.fiberCache.persistent.memory.reserved.size` to match your environment. 
-
-- `spark.executor.instances`: We suggest setting the value to 2X the number of worker nodes when NUMA binding is enabled. Each worker node runs two executors, each executor is bound to one of the two sockets, and accesses the corresponding DCPMM device on that socket.
-- `spark.sql.oap.fiberCache.persistent.memory.initial.size`: It is configured to the available DCPMM capacity to be used as data cache per exectutor.
-- `spark.sql.oap.fiberCache.persistent.memory.reserved.size`: When we use DCPMM as memory through memkind library, some portion of the space needs to be reserved for memory management overhead, such as memory segmentation. We suggest reserving 20% - 25% of the available DCPMM capacity to avoid memory allocation failure. But even with an allocation failure, OAP will continue the operation to read data from original input data and will not cache the data block.
 
 #### Choose additional configuration options
 
@@ -554,124 +673,4 @@ spark.sql.oap.orc.data.cache.enable            true
 spark.sql.oap.parquet.data.cache.enable        true
 ```
 
-### Binary cache 
 
-A binary cache is available for both Parquet and ORC file format to improve cache space utilization compared to ColumnVector cache. When enabling binary cache, you should change following configs in `spark-defaults.conf`.
-```
-# for parquet file format, enable binary cache
-spark.sql.oap.parquet.binary.cache.enabled      true
-# for parquet file format, disable ColumnVector cache
-spark.sql.oap.parquet.data.cache.enable         false
-# for ORC file format, enable binary cache
-spark.sql.oap.orc.binary.cache.enable           true
-# for ORC file format, disable ColumnVector cache
-spark.sql.oap.orc.data.cache.enable             false
-```
-The rest configurations can follow above part according to different cache media and strategies.
-
-#### Verify DCPMM cache functionality
-
-After finishing configuration, restart Spark Thrift Server for the configuration changes to take effect. Start at step 2 of the [Use DRAM Cache](#use-dram-cache) guide to verify that cache is working correctly.
-
-Verify NUMA binding status by confirming keywords like `numactl --cpubind=1 --membind=1` contained in executor launch command.
-
-Check DCPMM cache size by checking disk space with `df -h`. For Guava/Non-evictable strategies, the command will show disk space usage increases along with workload execution. For vmemcache strategy, disk usage will reach the initial cache size once the DCPMM cache is initialized and will not change during workload execution.
-
-## Run TPC-DS Benchmark
-
-This section provides instructions and tools for running TPC-DS queries to evaluate the cache performance of various configurations. The TPC-DS suite has many queries and we select 9 I/O intensive queries to simplify performance evaluation.
-
-We created some tool scripts [OAP-TPCDS-TOOL.zip](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.1-spark-2.4.4/OAP-TPCDS-TOOL.zip) to simplify running the workload. If you are already familiar with TPC-DS data generation and running a TPC-DS tool suite, skip our tool and use the TPC-DS tool suite directly.
-
-### Prerequisites
-
-- Python 2.7+ is required on the working node. 
-
-### Prepare the Tool
-
-1. Download [OAP-TPCDS-TOOL.zip](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.1-spark-2.4.4/OAP-TPCDS-TOOL.zip) and unzip to a folder (for example, `OAP-TPCDS-TOOL` folder) on your working node. 
-2. Copy `OAP-TPCDS-TOOL/tools/tpcds-kits` to ALL worker nodes under the same folder (for example, `/home/oap/tpcds-kits`).
-
-### Generate TPC-DS Data
-
-1. Update the values for the following variables in `OAP-TPCDS-TOOL/scripts/tool.conf` based on your environment and needs.
-
-   - SPARK_HOME: Point to the Spark home directory of your Spark setup.
-   - TPCDS_KITS_DIR: The tpcds-kits directory you coped to the worker nodes in the above prepare process. For example, /home/oap/tpcds-kits
-   - NAMENODE_ADDRESS: Your HDFS Namenode address in the format of host:port.
-   - THRIFT_SERVER_ADDRESS: Your working node address on which you will run Thrift Server.
-   - DATA_SCALE: The data scale to be generated in GB
-   - DATA_FORMAT: The data file format. You can specify parquet or orc
-
-   For example:
-
-```
-export SPARK_HOME=/home/oap/spark-2.4.4
-export TPCDS_KITS_DIR=/home/oap/tpcds-kits
-export NAMENODE_ADDRESS=mynamenode:9000
-export THRIFT_SERVER_ADDRESS=mythriftserver
-export DATA_SCALE=2
-export DATA_FORMAT=parquet
-```
-
-2. Start data generation.
-
-   In the root directory of this tool (`OAP-TPCDS-TOOL`), run `scripts/run_gen_data.sh` to start the data generation process. 
-
-```
-cd OAP-TPCDS-TOOL
-sh ./scripts/run_gen_data.sh
-```
-
-   Once finished, the `$scale` data will be generated in the HDFS folder `genData$scale`. And a database called `tpcds$scale` will contain the TPC-DS tables.
-
-### Start Spark Thrift Server
-
-Start the Thrift Server in the tool root folder, which is the same folder you run data generation scripts. Use either the DCPMM or DRAM scrip to start the Thrift Server.
-
-#### Use DCPMM as Cache Media
-
-Update the configuration values in `scripts/spark_thrift_server_yarn_with_DCPMM.sh` to reflect your environment. 
-Normally, you need to update the following configuration values to cache to DCPMM.
-
-- --driver-memory
-- --executor-memory
-- --executor-cores
-- --conf spark.sql.oap.fiberCache.persistent.memory.initial.size
-- --conf spark.sql.oap.fiberCache.persistent.memory.reserved.size
-
-These settings will override the values specified in Spark configuration file ( `spark-defaults.conf`). After the configuration is done, you can execute the following command to start Thrift Server.
-
-```
-cd OAP-TPCDS-TOOL
-sh ./scripts/spark_thrift_server_yarn_with_DCPMM.sh start
-```
-In this script, we use `guava` as cache strategy for ColumerVecor cache. you can alter to Binary cache. Or you can use `vmem` as cache strategy for ColumnVector or Binary cache, then follow above corresponding instructions to config rightly.
-
-#### Use DRAM as Cache Media 
-
-Update the configuration values in `scripts/spark_thrift_server_yarn_with_DRAM.sh` to reflect your environment. Normally, you need to update the following configuration values to cache to DRAM.
-
-- --driver-memory
-- --executor-memory
-- --executor-cores
-- --conf spark.sql.oap.fiberCache.offheap.memory.size
-- --conf spark.executor.memoryOverhead
-
-These settings will override the values specified in Spark configuration file (`spark-defaults.conf`). After the configuration is done, you can execute the following command to start Thrift Server.
-
-```
-cd OAP-TPCDS-TOOL
-sh ./scripts/spark_thrift_server_yarn_with_DRAM.sh  start
-```
-
-### Run Queries
-
-Execute the following command to start to run queries.
-
-```
-cd OAP-TPCDS-TOOL
-sh ./scripts/run_tpcds.sh
-```
-
-When all the queries are done, you will see the `result.json` file in the current directory.
