@@ -61,6 +61,12 @@ If you have installed all prerequisites, you can download our pre-built package 
 ```shell script
 sh ./dev/make-distribution.sh
 ``````
+If you use "prepare_oap_env.sh" to install GCC, or your GCC is not installed in the default path, please export CC (and CXX) before calling maven.
+```shell script
+export CXX=$OAPHOME/dev/thirdparty/gcc7/bin/g++
+export CC=$OAPHOME/dev/thirdparty/gcc7/bin/gcc
+```
+
 If you only want to build specified OAP module, you can use the command like the following, and then you will find the jars under the module's `target` directory.
 ```shell script
 # build SQL Index & Data Source Cache module
