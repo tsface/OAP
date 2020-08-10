@@ -7,7 +7,7 @@
 * [Working with SQL Index](#Working-with-SQL-Index)
 * [Working with SQL Data Source Cache](#Working-with-SQL-Data-Source-Cache)
 * [Run TPC-DS Benchmark](#Run-TPC-DS-Benchmark)
-* [Other DCPMM Cache Usage Strategy](#Other-DCPMM-Cache-Usage-Strategy)
+* [Advanced Configurations Scenarios](#Advanced-Configurations-Scenarios])
 
 
 ## Prerequisites
@@ -413,7 +413,10 @@ sh ./scripts/run_tpcds.sh
 
 When all the queries are done, you will see the `result.json` file in the current directory.
 
-## Other DCPMM Cache Usage Strategy
+## Advanced Configurations Scenarios
+
+### caching strategy
+In addition to Vmemcache, Datasource Cache Also has three other caching strategies : guava, noevict , vmemcache , external cache 
 
 
 ### Choose additional configuration options
@@ -581,8 +584,8 @@ Run command  ```yarn app -launch plasma-store-service /tmp/plasmaLaunch.json``` 
 Run ```yarn app -stop plasma-store-service``` to stop it.  
 Run ```yarn app -destroy plasma-store-service```to destroy it.
 
-
-### Index/Data cache separation
+### DataSource Cache advance usages and configurations
+#### Index/Data cache separation
 
 Data Source Cache now supports different cache strategies for DRAM and DCPMM. To optimize the cache media utilization, you can enable cache separation of data and index with same or different cache media. When Sharing same media, data cache and index cache will use different fiber cache ratio.
 
@@ -667,7 +670,7 @@ spark.sql.oap.orc.data.cache.enable            true
 spark.sql.oap.parquet.data.cache.enable        true
 ```
 
-### Binary cache 
+#### Binary cache 
 
 A binary cache is available for both Parquet and ORC file format to improve cache space utilization compared to ColumnVector cache. When enabling binary cache, you should change following configs in `spark-defaults.conf`.
 ```
@@ -682,7 +685,7 @@ spark.sql.oap.orc.data.cache.enable             false
 ```
 The rest configurations can follow above part according to different cache media and strategies.
 
-### Cache Hot Tables
+#### Cache Hot Tables
 
 Data Source Cache also supports caching specific tables by configuring items according to actual situations, these tables are usually hot tables.
 
