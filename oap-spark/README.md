@@ -17,21 +17,21 @@ Large capacity and high I/O performance of PMem shows better performance than ti
 ## User Guide
 ### Prerequisites
 
-The following are required to configure OAP to use DCPMM cache in AppDirect mode.
-- DCPMM hardware is successfully deployed on each node in cluster.
-- Directories exposing DCPMM hardware on each socket. For example, on a two socket system the mounted DCPMM directories should appear as `/mnt/pmem0` and `/mnt/pmem1`. Correctly installed DCPMM must be formatted and mounted on every cluster worker node.
+The following are required to configure OAP to use PMem cache in AppDirect mode.
+- PMem hardware is successfully deployed on each node in cluster.
+- Directories exposing PMem hardware on each socket. For example, on a two socket system the mounted PMem directories should appear as `/mnt/pmem0` and `/mnt/pmem1`. Correctly installed PMem must be formatted and mounted on every cluster worker node.
 
    ```
-   // use ipmctl command to show topology and dimm info of DCPM
+   // use ipmctl command to show topology and dimm info of PMem
    ipmctl show -topology
    ipmctl show -dimm
-   // provision dcpm in app direct mode
+   // provision PMem in app direct mode
    ipmctl create -goal PersistentMemoryType=AppDirect
    // reboot system to make configuration take affect
    reboot
    // check capacity provisioned for app direct mode(AppDirectCapacity)
    ipmctl show -memoryresources
-   // show the DCPM region information
+   // show the PMem region information
    ipmctl show -region
    // create namespace based on the region, multi namespaces can be created on a single region
    ndctl create-namespace -m fsdax -r region0
@@ -47,12 +47,12 @@ The following are required to configure OAP to use DCPMM cache in AppDirect mode
 
    In this case file systems are generated for 2 numa nodes, which can be checked by "numactl --hardware". For a different number of numa nodes, a corresponding number of namespaces should be created to assure correct file system paths mapping to numa nodes.
 
-- Make sure [Memkind](http://memkind.github.io/memkind/) library installed on every cluster worker node. Compile Memkind based on your system or directly place our pre-built binary of [libmemkind.so.0](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.2-spark-2.4.4/libmemkind.so.0) for x86 64bit CentOS Linux in the `/lib64/`directory of each worker node in cluster.
+- Make sure [Memkind](https://github.com/memkind/memkind/tree/v1.10.1-rc2) library installed on every cluster worker node. Compile Memkind based on your system or directly place our pre-built binary of [libmemkind.so.0](https://github.com/Intel-bigdata/OAP/releases/download/v0.8.2-spark-2.4.4/libmemkind.so.0) for x86 64bit CentOS Linux in the `/lib64/`directory of each worker node in cluster.
    The Memkind library depends on `libnuma` at the runtime, so it must already exist in the worker node system.
    Build the latest memkind lib from source:
 
    ```
-   git clone https://github.com/memkind/memkind
+   git clone -b v1.10.1-rc2 https://github.com/memkind/memkind
    cd memkind
    ./autogen.sh
    ./configure
@@ -118,7 +118,7 @@ HiBench/conf/hibench.conf
 HiBench/conf/spark.conf
 HiBench/conf/workloads/ml/kmeans.conf
 ```
-Note that you need add `hibench.kmeans.storage.level  PMEM_AND_DISK` to `kmeans.conf`, which can enable both DCPMM and Disk to cache data.
+Note that you need add `hibench.kmeans.storage.level  PMEM_AND_DISK` to `kmeans.conf`, which can enable both PMem and Disk to cache data.
 Then you can run the following 2 commands to run K-means workloads:
 ```
 bin/workloads/ml/kmeans/prepare/prepare.sh
