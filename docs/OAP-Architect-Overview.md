@@ -26,10 +26,10 @@ Most customers adopted Spark SQL as a batch processing engine. Customers finally
 For example, the following interactive query wants to filter out a very small result set from a huge fact table.
 
 ```
-select query, term, userid, planid, unitid, winfoid, bmm_type, cmatch, charge, wctrl, target_url, audience_targeting_tag, is_url_targeting_adv, pluto_idea_type
-from basedata.fc_ad_wise
-where (event_day='20180701' and query='xxx' and winfoid='65648180412')
-limit 10
+select ss_sold_date_sk, ss_sold_time_sk, ss_item_sk, ss_cdemo_sk, ss_store_sk, ss_ticket_number, 	ss_ext_discount_amt, ss_ext_wholesale_cost, ss_ext_tax
+	from fact.ss_sales
+	where (date='20200801' and ss_customer='xxx' and ss_item_sk='806486’)
+	limit 10
 ```
 
 Interactive queries usually process on a large data set but return a small portion of data filtering out with a specific condition. Customers are facing big challenges in meeting the performance requirement of interactive queries as we want the result returned in seconds instead of tens of minutes or even hours. 
