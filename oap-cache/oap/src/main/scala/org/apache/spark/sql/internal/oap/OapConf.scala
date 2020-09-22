@@ -144,6 +144,13 @@ object OapConf {
       .booleanConf
       .createWithDefault(false)
 
+  val OAP_CACHE_RUNTIME_ENABLE =
+    SqlConfAdapter.buildConf("spark.sql.oap.cache.enable")
+      .internal()
+      .doc("This config is to enable/disable OAP datasource cache in runtime")
+      .booleanConf
+      .createWithDefault(true)
+
   val OAP_CACHE_TABLE_LISTS_ENABLE =
     SqlConfAdapter.buildConf("spark.sql.oap.fiberCache.table.list.enable")
       .internal()

@@ -182,6 +182,21 @@ class OapFileSourceStrategyForParquetSuite extends OapFileSourceStrategySuite {
       (plan1, plan2) => plan1.sameResult(plan2)
     )
   }
+
+  test("Disable Optimized") {
+    withSQLConf(OapConf.OAP_PARQUET_DATA_CACHE_ENABLED.key -> "true",
+      OapConf.OAP_CACHE_RUNTIME_ENABLE.key -> "false") {
+      verifyProjectScan(
+        format => format.isInstanceOf[ParquetFileFormat],
+        (plan1, plan2) => plan1.sameResult(plan2)
+      )
+      verifyProjectFilterScan(
+        indexColumn = "b",
+        format => format.isInstanceOf[ParquetFileFormat],
+        (plan1, plan2) => plan1.sameResult(plan2)
+      )
+    }
+  }
 }
 
 class OapFileSourceStrategyForOrcSuite extends OapFileSourceStrategySuite {
@@ -210,6 +225,21 @@ class OapFileSourceStrategyForOrcSuite extends OapFileSourceStrategySuite {
       format => format.isInstanceOf[OrcFileFormat],
       (plan1, plan2) => plan1.sameResult(plan2)
     )
+  }
+
+  test("Disable Optimized") {
+    withSQLConf(OapConf.OAP_ORC_DATA_CACHE_ENABLED.key -> "true",
+      OapConf.OAP_CACHE_RUNTIME_ENABLE.key -> "false") {
+      verifyProjectScan(
+        format => format.isInstanceOf[OrcFileFormat],
+        (plan1, plan2) => plan1.sameResult(plan2)
+      )
+      verifyProjectFilterScan(
+        indexColumn = "b",
+        format => format.isInstanceOf[OrcFileFormat],
+        (plan1, plan2) => plan1.sameResult(plan2)
+      )
+    }
   }
 
   test("Scan : Not Optimized") {
