@@ -60,6 +60,12 @@ Execute the following command to stop Spark Thrift Server in a pod and stop corr
 ``` 
 sh ./spark-thrift-server.sh stop
 ``` 
+##### Connect beeline to Spark Thrift Server
+Execute the following command to connect to the Thrift server. Make sure you execute it on one of your Kubernetes cluster node.
+``` 
+sh ./spark-beeline.sh
+``` 
+
 ##### Launch a Shell to Spark Thrift Server
 Execute the following command to launch a command shell to the server.
 ``` 
