@@ -73,22 +73,19 @@ make package
 sudo rpm -i libvmemcache*.rpm
 ```
 #### build and install plasma
+#### build and install plasma
 To use optimized Plasma cache with OAP, you need following components:  
     (1) libarrow.so, libplasma.so, libplasma_jni.so: dynamic libraries, will be used in plasma client.   
     (2) plasma-store-server: executable file, plasma cache service.  
     (3) arrow-plasma-0.17.0.jar: will be used when compile oap and spark runtime also need it. 
-    
-(1) and (2) will be provided as rpm package, we provide [Fedora 29](https://github.com/Intel-bigdata/arrow/releases/download/apache-arrow-0.17.0-intel-oap-0.8/arrow-plasma-intel-libs-0.17.0-1.fc29.x86_64.rpm) and [Cent OS 7.6](https://github.com/Intel-bigdata/arrow/releases/download/apache-arrow-0.17.0-intel-oap-0.8/arrow-plasma-intel-libs-0.17.0-1.el7.x86_64.rpm) rpm package, you can download it on release page.
-Run `rpm -ivh arrow-plasma-intel-libs-0.17.0-1*x86_64.rpm` to install it.   
-(3) will be provided in maven central repo. You need to download [it](https://repo1.maven.org/maven2/com/intel/arrow/arrow-plasma/0.17.0/arrow-plasma-0.17.0.jar) and copy to `$SPARK_HOME/jars` dir.
 
 - so file and binary file  
-  clone code from Intel-arrow repo and run following commands, this will install libplasma.so, libarrow.so, libplasma_jni.so and plasma-store-server to your system path(/usr/lib64 by default). And if you are using spark in a cluster environment, you can copy these files to all nodes in your cluster if os or distribution are same, otherwise, you need compile it on each node.
+  Clone code from Intel-arrow repo and run following commands, this will install libplasma.so, libarrow.so, libplasma_jni.so and plasma-store-server to your system path(/usr/lib64 by default). And if you are using spark in a cluster environment, you can copy these files to all nodes in your cluster if os or distribution are same, otherwise, you need compile it on each node.
   
 ```
 cd /tmp
 git clone https://github.com/Intel-bigdata/arrow.git
-cd arrow && git checkout oap-master
+cd arrow && git checkout apache-arrow-0.17.0-intel-oap-0.9
 cd cpp
 mkdir release
 cd release
@@ -97,9 +94,9 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE=Release -DARROW_BUILD_TEST
 make -j$(nproc)
 sudo make install -j$(nproc)
 ```
-
 - arrow-plasma-0.17.0.jar  
-   change to arrow repo java direction, run following command, this will install arrow jars to your local maven repo, and you can compile oap-cache module package now. Beisdes, you need copy arrow-plasma-0.17.0.jar to `$SPARK_HOME/jars/` dir, cause this jar is needed when using external cache.
+   arrow-plasma-0.17.0.jar is provided in maven central repo, you can download [it](https://repo1.maven.org/maven2/com/intel/arrow/arrow-plasma/0.17.0/arrow-plasma-0.17.0.jar) and copy to `$SPARK_HOME/jars` dir.
+   Or you can manually install it, change to arrow repo java direction, run following command, this will install arrow jars to your local maven repo, and you can compile oap-cache module package now. Beisdes, you need copy arrow-plasma-0.17.0.jar to `$SPARK_HOME/jars/` dir, cause this jar is needed when using external cache.
    
 ```
 cd $ARROW_REPO_DIR/java
