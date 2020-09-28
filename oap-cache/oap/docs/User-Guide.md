@@ -309,6 +309,16 @@ The `vmem` cache strategy is based on libvmemcache (buffer based LRU cache), whi
 
 - Check PMem cache size by checking disk space with `df -h`.For `vmemcache` strategy, disk usage will reach the initial cache size once the PMem cache is initialized and will not change during workload execution. For `Guava/Noevict` strategies, the command will show disk space usage increases along with workload execution. 
 
+### Disable Cache feature in runtime
+
+If user find some queries have performance degradation with data source cache, user could disable this feature for these queries by set `spark.sql.oap.cache.enabled` to `false` in runtime, which will use default Spark implementation to guarantee performance. If you are using spark-shell, it would like below, the second query will not use cache:  
+```
+spark.sql("SELECT column_A FROM table_A")
+spark.sql("SET spark.sql.oap.cache.enabled=false")
+spark.sql("SELECT column_B FROM table_B")
+spark.sql("SET spark.sql.oap.cache.enabled=true")
+spark.sql("SELECT column_C FROM table_C")
+```
 
 ## Run TPC-DS Benchmark
 
