@@ -15,7 +15,7 @@ cd OAP
 ```
 
 #### Prerequisites for Building
-OAP is built using [Apache Maven](http://maven.apache.org/). You need to install the required packages on the build system listed below. To enable Shuffle Remote PMem extension, you must configure and validate RDMA in advance, you can refer to [Shuffle Remote PMem Extension Guide](../oap-shuffle/RPMem-shuffle/README.md) for more details.
+OAP is built using [Apache Maven](http://maven.apache.org/) and Java8. You need to install the required packages on the build system listed below. 
 
 - [Cmake](https://help.directadmin.com/item.php?id=494)
 - [Memkind](https://github.com/memkind/memkind/tree/v1.10.1-rc2)
@@ -23,39 +23,50 @@ OAP is built using [Apache Maven](http://maven.apache.org/). You need to install
 - [HPNL](https://github.com/Intel-bigdata/HPNL)
 - [PMDK](https://github.com/pmem/pmdk)  
 - [GCC > 7](https://gcc.gnu.org/wiki/InstallingGCC)
+- **Requirements for Shuffle Remote PMem Extension**  
+If enable Shuffle Remote PMem extension with RDMA, you can refer to [Shuffle Remote PMem Extension Guide](../oap-shuffle/RPMem-shuffle/README.md) to configure and validate RDMA in advance.  
 
-You can use the following command under the folder dev to automatically install these dependencies.
-
+We provide scripts to help automatically install all dependencies except RDMA, run:
 ```shell script
-source $OAP_HOME/dev/prepare_oap_env.sh
-prepare_maven
+sh $OAP_HOME/dev/install-oap-dependencies.sh
 ```
-You can also use command like prepare_cmake to install the specified dependencies after executing the command "source prepare_oap_env.sh". Use the following command to learn more.
-
+If you want to use Shuffle Remote PMem Extension feature with RDMA and have completed the RDMA configuring and validating steps, execute the following commands to run the preparing process:
 ```shell script
-oap_build_help
-```
-
-If you want to automatically install all dependencies,use:
-```shell script
-prepare_all
+sh $OAP_HOME/dev/install-oap-dependencies.sh --with-rdma
 ```
 
-#### Building
+Run the following command to learn more.
 
-If you use "prepare_oap_env.sh" to install GCC, or your GCC is not installed in the default path, please export CC (and CXX) before calling maven.
+```shell script
+sh $OAP_HOME/dev/scripts/prepare_oap_env.sh --help
+```
+
+Run the following command to automatically install specific dependency such as Maven.
+
+```shell script
+sh $OAP_HOME/dev/scripts/prepare_oap_env.sh --prepare_maven
+```
+
+***NOTE:*** If you use `install-oap-dependencies.sh` or `prepare_oap_env.sh` to install GCC, or your GCC is not installed in the default path, please ensure you have exported `CC` (and `CXX`) before calling maven.
 ```shell script
 export CXX=$OAPHOME/dev/thirdparty/gcc7/bin/g++
 export CC=$OAPHOME/dev/thirdparty/gcc7/bin/gcc
 ```
 
+#### Building
+
+
 To build OAP package, use
 ```shell script
+sh $OAPHOME/dev/compile-oap.sh
+#or
 mvn clean -DskipTests package
 ```
 
 #### Building Specified Module
 ```shell script
+sh $OAPHOME/dev/compile-oap.sh --oap-cache
+#or
 mvn clean -pl com.intel.oap:oap-cache -am package
 ```
 
@@ -73,10 +84,9 @@ mvn clean -pl com.intel.oap:oap-cache -am test
 
 #### OAP Building with PMem
 
-##### Prerequisites for building with PMem support
+#### Prerequisites for building with PMem support
 
-If you want to use OAP-CACHE with PMem,  you must finish steps of "Prerequisites for building" to ensure all dependencies have been installed .
-
+When use SQL Index and Data Source Cache with PMem, finish steps of [Prerequisites for building](#Prerequisites-for-building) to ensure needed dependencies have been installed.
 ##### Building package
 You need to add `-Ppersistent-memory` to build with PMem support. For `noevict` cache strategy, you also need to build with `-Ppersistent-memory` parameter.
 ```shell script
@@ -93,7 +103,7 @@ mvn clean -q -Ppersistent-memory -Pvmemcache -DskipTests package
 
 
 #### OAP Packaging 
-If you want to generate a release package after you mvn package all modules, use the following command under the directory dev, then you can find a tarball named oap-product-$VERSION-bin-spark-2.4.4.tar.gz in dev/release-package dictionary.
+If you want to generate a release package after you mvn package all modules, use the following command under the directory dev, then you can find a tarball named oap-$VERSION-bin-spark-2.4.4.tar.gz in dev/release-package dictionary.
 ```shell script
-sh make-distribution.sh
+sh $OAPHOME/dev/compile-oap.sh
 ```
