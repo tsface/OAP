@@ -417,6 +417,7 @@ When all the queries are done, you will see the `result.json` file in the curren
 - [Cache Hot Tables](#Cache-Hot-Tables)  Data Source Cache also supports caching specific tables according to actual situations, these tables are usually hot tables.
 - [Column Vector Cache](#Column-Vector-Cache)  This document above use **binary** cache as example, if your cluster memory resources is abundant enough, you can choose ColumnVector data cache instead of binary cache to spare computation time.
 - [Disable Cache in Runtime](#Disable-Cache-in-Runtime) Data Source Cache also supports disabling Cache in Runtime.
+- [Large Scale and Heterogeneous cluster support](#Large Scale and Heterogeneous cluster support)
 ### Additional Cache Strategies
 
 Following table shows features of 4 cache strategies on PMem.
@@ -714,4 +715,20 @@ spark.sql("SET spark.sql.oap.cache.enabled=false")
 spark.sql("SELECT column_B FROM table_B")
 spark.sql("SET spark.sql.oap.cache.enabled=true")
 spark.sql("SELECT column_C FROM table_C")
+```
+
+### Large Scale and Heterogeneous cluster support
+***NOTE:*** Only works with `external cache`
+
+OAP influences Spark to schedule tasks according cache locality info. These info could be of large amount in a ***large scale cluster*** and how to schedule tasks in a ***heterogeneous cluster*** (some nodes with Optane™ DC Persistent Memory, some without) could also be challenging.
+
+We introduce an external DB to store cache locality info. If there's no cache available, spark will fallback to schedule respecting HDFS locality.
+Currently we support [Redis]("https://redis.io/") as external DB service. Please [download and launch a redis-server]("https://redis.io/download") before running spark with OAP.
+
+Please add following configuration to `spark-defaults.conf`.
+```
+spark.sql.oap.external.cache.metaDB.enable             true
+# Redis-server address
+spark.sql.oap.external.cache.metaDB.address            10.1.2.12
+spark.sql.oap.external.cache.metaDB.impl               org.apache.spark.sql.execution.datasources.RedisClient
 ```
