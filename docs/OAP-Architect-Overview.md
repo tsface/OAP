@@ -63,7 +63,7 @@ OAP (Optimized Analytical Package for Spark) acts as a `.jar` plug-in for Spark 
 
 - OAP's two major optimization functionalities (indexing and caching) are based on unified representation and the adapter. 
    - Indices can be created on one or multiple columns of a data file. 
-   - Currently, OAP only caches decompressed and decoding data, and will support raw data in the future. Generally, the server's DRAM is used as the cache medium. [DCPMM](https://www.intel.com/content/www/us/en/architecture-and-technology/optane-dc-persistent-memory.html) can also be used as the cache medium as it will provide a more cost effective solution for the requirements of a high performance environment.
+   - Data Source Cache can cache both decompressed and decoded vectorized data and bianry raw data. Generally, the server's DRAM is used as the cache medium. [DCPMM](https://www.intel.com/content/www/us/en/architecture-and-technology/optane-dc-persistent-memory.html) can also be used as the cache medium as it will provide a more cost effective solution for the requirements of a high performance environment.
 
 - Both indexing and caching as ***OAP Optimizer & Execution*** are transparent for users. See the [OAP Features](#OAP-Features) section for details.
 
