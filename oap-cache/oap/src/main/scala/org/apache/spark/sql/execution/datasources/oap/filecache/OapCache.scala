@@ -1000,11 +1000,11 @@ class ExternalCache(fiberType: FiberType) extends OapCache with Logging {
     catch {
       case e: DuplicateObjectException =>
         // TODO: what if hash conllisions?
-        logWarning("plasma object duplicate " + e.getMessage + " Will get this object.")
-        // FIXME: this obj may not be sealed, get may throw exception
-        val plasmaClient = plasmaClientPool(clientRoundRobin.getAndAdd(1) % clientPoolSize)
-        val buf: ByteBuffer = plasmaClient.getObjAsByteBuffer(objectId, -1, false)
-        ExternalDataFiber(buf, objectId, plasmaClient)
+        logWarning("plasma object duplicate " +
+          e.getMessage + " another thread is operating this object.")
+        // multi threads has conflicts creating one object, return a null fiber
+        FiberCache(FiberType.DATA, MemoryBlockHolder(
+          null, 0L, 0L, 0L, SourceEnum.DRAM))
     }
   }
 
@@ -1086,7 +1086,9 @@ class ExternalCache(fiberType: FiberType) extends OapCache with Logging {
         cacheMissCount.addAndGet(1)
         fiberSet.add(fiberId)
         fiberCache.occupy()
-        cacheGuardian.addRemovalFiber(fiberId, fiberCache)
+        if (!fiberCache.isFailedMemoryBlock()) {
+          cacheGuardian.addRemovalFiber(fiberId, fiberCache)
+        }
         fiberCache
       } else {
         val fiberCache = super.cache(fiberId)
@@ -1110,6 +1112,9 @@ class ExternalCache(fiberType: FiberType) extends OapCache with Logging {
 
   override def cache(fiberId: FiberId): FiberCache = {
     val fiber = super.cache(fiberId)
+    if (fiber.isFailedMemoryBlock()) {
+      return fiber;
+    }
     fiber.fiberId = fiberId
     val objectId = hash(fiberId.toString)
     try {
