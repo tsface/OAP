@@ -24,6 +24,7 @@ import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.concurrent.locks.{Condition, ReentrantLock}
+import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -1142,9 +1143,16 @@ class ExternalCache(fiberType: FiberType) extends OapCache with Logging {
     // especially in multi executor case
     cacheTotalCount = new AtomicLong(fiberSet.size)
     val tmp = scala.collection.mutable.Set[FiberId]()
-    fiberSet.forEach(id => tmp.add(id))
-    // val tmp: Collections.synchronizedSet = fiberSet.clone()
+    fiberSet.forEach(toJavaConsumer((id: FiberId) => tmp.add(id)))
     tmp.toSet
+  }
+
+  def toJavaConsumer[T](consumer: (T) => Unit): Consumer[T] = {
+    new Consumer[T] {
+      override def accept(t: T): Unit = {
+        consumer(t)
+      }
+    }
   }
 
   override def invalidate(fiber: FiberId): Unit = { }
