@@ -1,4 +1,10 @@
 # Optimized Analytics Package for Spark\* Platform (OAP)
+## Soft Reminder
+Maintenance releases for OAP 0.8.x and 1.0.x will continue host here.
+
+OAP 1.1+ development and release have migrated to https://github.com/oap-project
+
+## LEGAL
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
 
