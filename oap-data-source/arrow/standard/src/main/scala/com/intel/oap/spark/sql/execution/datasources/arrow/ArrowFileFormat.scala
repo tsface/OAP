@@ -107,11 +107,29 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
         factory.close()
       }))
 
-      val itr = itrList
-        .toIterator
-        .flatMap(itr => itr.asScala)
-        .map(vsr => ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema,
-          requiredSchema))
+
+      val _dataList = DataCacheManager.getVectorData(file.filePath)
+
+      val itr = _dataList match {
+        case Some(_data) =>
+          _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
+        case None =>
+          itrList
+            .toIterator
+            .flatMap(itr => itr.asScala)
+            //        .map(vsr => ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema,
+            //          requiredSchema))
+            .map{
+              vsr =>
+                ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema, requiredSchema)
+            }
+      }
+
+//      val itr = itrList
+//        .toIterator
+//        .flatMap(itr => itr.asScala)
+//        .map(vsr => ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema,
+//                requiredSchema))
       new UnsafeItr(itr).asInstanceOf[Iterator[InternalRow]]
     }
   }
