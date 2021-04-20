@@ -122,6 +122,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
             .map{
               vsr =>
                 ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema, requiredSchema)
+                DataCacheManager.saveVectorData(file.filePath, List(vsr))
             }
       }
 
