@@ -20,15 +20,13 @@ package com.intel.oap.spark.sql.execution.datasources.arrow
 import java.net.URLDecoder
 
 import scala.collection.JavaConverters._
-
 import com.intel.oap.spark.sql.execution.datasources.arrow.ArrowFileFormat.UnsafeItr
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.{ArrowFilters, ArrowOptions, ArrowUtils}
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.ArrowSQLConf._
-import org.apache.arrow.dataset.scanner.ScanOptions
+import org.apache.arrow.dataset.scanner.{ScanOptions, ScanTask}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.Job
-
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -108,7 +106,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
       }))
 
 
-      val _dataList = DataCacheManager.getVectorData(file.filePath)
+      val _dataList: Option[List[ScanTask.ArrowBundledVectors]] = DataCacheManager.getVectorData(file.filePath)
 
       val itr = _dataList match {
         case Some(_data) =>
