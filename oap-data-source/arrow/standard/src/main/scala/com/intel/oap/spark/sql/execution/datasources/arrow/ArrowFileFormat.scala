@@ -94,8 +94,14 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
           .iterator()
           .asScala
           .toList
-      val itrList = taskList
-        .map(task => task.scan())
+//      val itrList = taskList
+//        .map(task => task.scan())
+        val itrList = taskList
+          .map{
+            task =>
+              println(s"task info -=-==-==-==${task}")
+              task.scan()
+          }
 
       Option(TaskContext.get()).foreach(_.addTaskCompletionListener[Unit](_ => {
         itrList.foreach(_.close())
