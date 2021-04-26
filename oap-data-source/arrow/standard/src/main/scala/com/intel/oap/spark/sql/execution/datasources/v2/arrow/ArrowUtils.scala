@@ -32,6 +32,7 @@ import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.hadoop.fs.FileStatus
 
 import org.apache.spark.TaskContext
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils}
 import org.apache.spark.sql.execution.vectorized.ColumnVectorUtils
@@ -39,7 +40,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object ArrowUtils {
+object ArrowUtils extends Logging{
 
   def readSchema(file: FileStatus, options: CaseInsensitiveStringMap): Option[StructType] = {
     val factory: SingleFileDatasetFactory =
@@ -92,6 +93,8 @@ object ArrowUtils {
     val rowCount: Int = getRowCount(bundledVectors)
     val dataVectors = getDataVectors(bundledVectors, dataSchema)
     val dictionaryVectors = getDictionaryVectors(bundledVectors, dataSchema)
+
+    logError(s"-=-=-=-===-rowCount = ${rowCount} , dataVectors = ${dataVectors} , dictionaryVectors = ${dictionaryVectors}")
 
     val vectors = ArrowWritableColumnVector.loadColumns(rowCount, dataVectors.asJava,
       dictionaryVectors.asJava)
