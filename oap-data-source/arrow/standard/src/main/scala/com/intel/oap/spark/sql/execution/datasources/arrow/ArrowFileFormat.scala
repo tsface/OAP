@@ -28,6 +28,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.TaskContext
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriterFactory, PartitionedFile}
@@ -36,7 +37,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
+class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable with Logging {
 
   def convert(files: Seq[FileStatus], options: Map[String, String]): Option[StructType] = {
     ArrowUtils.readSchema(files, new CaseInsensitiveStringMap(options.asJava))
@@ -99,7 +100,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
         val itrList = taskList
           .map{
             task =>
-              println(s"task info -=-==-==-==${task}")
+              logError(s"task info -=-==-==-==${task}")
               task.scan()
           }
 
@@ -116,6 +117,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
 
       val itr = _dataList match {
         case Some(_data) =>
+          logError(s"-=-====---=-=-${_data}")
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
           itrList
