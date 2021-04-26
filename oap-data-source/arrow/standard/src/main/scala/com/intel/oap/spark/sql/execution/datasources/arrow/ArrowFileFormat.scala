@@ -72,54 +72,56 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
     val enableFilterPushDown = sqlConf.arrowFilterPushDown
 
     (file: PartitionedFile) => {
-      val factory = ArrowUtils.makeArrowDiscovery(
-        URLDecoder.decode(file.filePath, "UTF-8"), new ArrowOptions(
-          new CaseInsensitiveStringMap(
-            options.asJava).asScala.toMap))
-
-      // todo predicate validation / pushdown
-      val dataset = factory.finish();
-
-      val filter = if (enableFilterPushDown) {
-        ArrowFilters.translateFilters(filters)
-      } else {
-        org.apache.arrow.dataset.filter.Filter.EMPTY
-      }
-
-      val scanOptions = new ScanOptions(requiredSchema.map(f => f.name).toArray,
-        filter, batchSize)
-      val scanner = dataset.newScan(scanOptions)
-
-      val taskList = scanner
-          .scan()
-          .iterator()
-          .asScala
-          .toList
-//      val itrList = taskList
-//        .map(task => task.scan())
-        val itrList = taskList
-          .map{
-            task =>
-              logError(s"task info -=-==-==-==${task}")
-              task.scan()
-          }
-
-      Option(TaskContext.get()).foreach(_.addTaskCompletionListener[Unit](_ => {
-        itrList.foreach(_.close())
-        taskList.foreach(_.close())
-        scanner.close()
-        dataset.close()
-        factory.close()
-      }))
 
 
       val _dataList: Option[List[ScanTask.ArrowBundledVectors]] = DataCacheManager.getVectorData(file.filePath)
 
+
       val itr = _dataList match {
         case Some(_data) =>
-          logError(s"-=-====---=-=-${_data}")
+          logError(s"-=-===load data from cache=-=-${_data}")
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
+          val factory = ArrowUtils.makeArrowDiscovery(
+            URLDecoder.decode(file.filePath, "UTF-8"), new ArrowOptions(
+              new CaseInsensitiveStringMap(
+                options.asJava).asScala.toMap))
+
+          // todo predicate validation / pushdown
+          val dataset = factory.finish();
+
+          val filter = if (enableFilterPushDown) {
+            ArrowFilters.translateFilters(filters)
+          } else {
+            org.apache.arrow.dataset.filter.Filter.EMPTY
+          }
+
+          val scanOptions = new ScanOptions(requiredSchema.map(f => f.name).toArray,
+            filter, batchSize)
+          val scanner = dataset.newScan(scanOptions)
+
+          val taskList = scanner
+            .scan()
+            .iterator()
+            .asScala
+            .toList
+          //      val itrList = taskList
+          //        .map(task => task.scan())
+          val itrList = taskList
+            .map{
+              task =>
+                logError(s"task info -=-==-==-==${task}")
+                task.scan()
+            }
+
+          Option(TaskContext.get()).foreach(_.addTaskCompletionListener[Unit](_ => {
+            itrList.foreach(_.close())
+            taskList.foreach(_.close())
+            scanner.close()
+            dataset.close()
+            factory.close()
+          }))
+
           itrList
             .toIterator
             .flatMap(itr => itr.asScala)
@@ -131,6 +133,12 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
                 ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema, requiredSchema)
             }
       }
+
+
+
+
+
+
 
 //      val itr = itrList
 //        .toIterator
