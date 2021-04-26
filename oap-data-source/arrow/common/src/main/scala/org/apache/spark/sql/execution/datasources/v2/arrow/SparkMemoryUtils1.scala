@@ -20,7 +20,8 @@ package org.apache.spark.sql.execution.datasources.v2.arrow
 import java.util.UUID
 
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.SparkManagedReservationListener
-import org.apache.arrow.memory.{AllocationListener, BaseAllocator, BufferAllocator, OutOfMemoryException}
+import org.apache.arrow.memory.{AllocationListener, BaseAllocator, BufferAllocator, DirectReservationListener, OutOfMemoryException, ReservationListener}
+
 import org.apache.spark.TaskContext
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
 import org.apache.spark.util.TaskCompletionListener
