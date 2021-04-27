@@ -137,7 +137,7 @@ object SparkMemoryUtils1 extends Logging{
 //                  }
 //                }
 //              }
-              logError(s" -=-===task completed , fileToAllocatorMap = ${fileToAllocatorMap}")
+//              logError(s" -=-===task completed , fileToAllocatorMap size = ${fileToAllocatorMap.size()}")
             }
           })
         newInstance
