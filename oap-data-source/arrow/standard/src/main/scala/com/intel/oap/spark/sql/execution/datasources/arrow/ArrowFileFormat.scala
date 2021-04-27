@@ -80,7 +80,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
       val itr = _dataList match {
         case Some(_data) =>
           logError(s"-=-===load data from cache=-=-${_data}")
-          val debugString = new StringBuilder
+          var debugString = new StringBuilder
           _data.toIterator.map{
             x =>
               debugString.append("row count").append(" = ").append(x.valueVectors.getRowCount)
@@ -88,7 +88,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
                 .append(x.valueVectors.getVector(requiredSchema.fields.apply(0).name).getFieldBuffers.size())
                 .append(" ; ")
           }
-          logError(s"**********debugString = ${debugString}")
+          logError(s"**********debugString = ${debugString.toString()}")
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
           val factory = ArrowUtils.makeArrowDiscovery(
