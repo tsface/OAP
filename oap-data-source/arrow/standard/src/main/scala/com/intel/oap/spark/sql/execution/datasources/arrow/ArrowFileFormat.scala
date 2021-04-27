@@ -176,7 +176,9 @@ object ArrowFileFormat {
 
     override def next(): ColumnarBatch = {
       val b = delegate.next()
-      holder.retain(b)
+      if(!useCache) {
+        holder.retain(b)
+      }
       b
     }
   }
