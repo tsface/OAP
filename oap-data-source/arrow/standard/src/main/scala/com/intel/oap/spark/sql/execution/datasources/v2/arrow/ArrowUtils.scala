@@ -94,7 +94,7 @@ object ArrowUtils extends Logging{
     val dataVectors = getDataVectors(bundledVectors, dataSchema)
     val dictionaryVectors = getDictionaryVectors(bundledVectors, dataSchema)
 
-    logError(s"-=-=-=-===-rowCount = ${rowCount} , dataVectors = ${dataVectors} , dictionaryVectors = ${dictionaryVectors}")
+//    logError(s"-=-=-=-===-rowCount = ${rowCount} , dataVectors = ${dataVectors} , dictionaryVectors = ${dictionaryVectors}")
 
     val vectors = ArrowWritableColumnVector.loadColumns(rowCount, dataVectors.asJava,
       dictionaryVectors.asJava)
