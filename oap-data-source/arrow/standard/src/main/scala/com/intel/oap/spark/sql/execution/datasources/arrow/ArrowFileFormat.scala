@@ -86,6 +86,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
               debugString.append("row count").append(" = ").append(x.valueVectors.getRowCount)
                 .append(" value size ").append(" = ")
                 .append(x.valueVectors.getVector(requiredSchema.fields.apply(0).name).getFieldBuffers.size())
+                .append(" ; ")
           }
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
