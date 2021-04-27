@@ -88,6 +88,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
                 .append(x.valueVectors.getVector(requiredSchema.fields.apply(0).name).getFieldBuffers.size())
                 .append(" ; ")
           }
+          logError(s"**********debugString = ${debugString}")
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
           val factory = ArrowUtils.makeArrowDiscovery(
