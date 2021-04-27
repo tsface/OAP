@@ -21,12 +21,12 @@ import java.util.UUID
 
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.SparkManagedReservationListener
 import org.apache.arrow.memory.{AllocationListener, BaseAllocator, BufferAllocator, DirectReservationListener, OutOfMemoryException, ReservationListener}
-
 import org.apache.spark.TaskContext
+import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
 import org.apache.spark.util.TaskCompletionListener
 
-object SparkMemoryUtils1 {
+object SparkMemoryUtils1 extends Logging{
   private val taskToAllocatorMap = new java.util.IdentityHashMap[TaskContext, BufferAllocator]()
   private val fileToAllocatorMap = new java.util.IdentityHashMap[String, BufferAllocator]()
   private val taskToReservationListenerMap =
@@ -112,28 +112,38 @@ object SparkMemoryUtils1 {
 
 
   def arrowAllocator(file : String): BaseAllocator = {
-    val al = new ExecutionMemoryAllocationListener(getTaskMemoryManager())
-    val parent = org.apache.spark.sql.util.ArrowUtils.rootAllocator
-    val newInstance = parent.newChildAllocator(file, al, 0, parent.getLimit).asInstanceOf[BaseAllocator]
-    fileToAllocatorMap.put(file, newInstance)
-    getLocalTaskContext.addTaskCompletionListener(
-      new TaskCompletionListener {
-        override def onTaskCompletion(context: TaskContext): Unit = {
-          fileToAllocatorMap.synchronized {
-            if (fileToAllocatorMap.containsKey(context)) {
-              val allocator = fileToAllocatorMap.get(context)
-              val allocated = allocator.getAllocatedMemory
-              if (allocated == 0L) {
-                close(allocator)
-                fileToAllocatorMap.remove(context)
-              } else {
-                softClose(allocator)
-              }
+
+    val allocator = fileToAllocatorMap.synchronized {
+      if (fileToAllocatorMap.containsKey(file)) {
+        fileToAllocatorMap.get(file).asInstanceOf[BaseAllocator]
+      } else {
+        val al = new ExecutionMemoryAllocationListener(getTaskMemoryManager())
+        val parent = org.apache.spark.sql.util.ArrowUtils.rootAllocator
+        val newInstance = parent.newChildAllocator(file, al, 0,
+          parent.getLimit).asInstanceOf[BaseAllocator]
+        fileToAllocatorMap.put(file, newInstance)
+        getLocalTaskContext.addTaskCompletionListener(
+          new TaskCompletionListener {
+            override def onTaskCompletion(context: TaskContext): Unit = {
+//              fileToAllocatorMap.synchronized {
+//                if (fileToAllocatorMap.containsKey(context)) {
+//                  val allocator = fileToAllocatorMap.get(context)
+//                  val allocated = allocator.getAllocatedMemory
+//                  if (allocated == 0L) {
+//                    close(allocator)
+//                    fileToAllocatorMap.remove(context)
+//                  } else {
+//                    softClose(allocator)
+//                  }
+//                }
+//              }
+              logError(s" -=-===task completed , fileToAllocatorMap = ${fileToAllocatorMap}")
             }
-          }
-        }
-      })
-    newInstance
+          })
+        newInstance
+      }
+    }
+    allocator
   }
 
 
