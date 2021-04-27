@@ -32,7 +32,7 @@ object SparkMemoryUtils1 extends Logging{
   private val taskToReservationListenerMap =
     new java.util.IdentityHashMap[TaskContext, SparkManagedReservationListener]()
 
-  private class ExecutionMemoryAllocationListener(mm: TaskMemoryManager)
+  private class ExecutionMemoryAllocationListener1(mm: TaskMemoryManager)
     extends MemoryConsumer(mm, mm.pageSizeBytes(), MemoryMode.OFF_HEAP) with AllocationListener {
 
     override def onPreAllocation(size: Long): Unit = {
@@ -83,7 +83,7 @@ object SparkMemoryUtils1 extends Logging{
       if (taskToAllocatorMap.containsKey(tc)) {
         taskToAllocatorMap.get(tc).asInstanceOf[BaseAllocator]
       } else {
-        val al = new ExecutionMemoryAllocationListener(getTaskMemoryManager())
+        val al = new ExecutionMemoryAllocationListener1(getTaskMemoryManager())
         val parent = org.apache.spark.sql.util.ArrowUtils.rootAllocator
         val newInstance = parent.newChildAllocator("Spark Managed Allocator - " +
           UUID.randomUUID().toString, al, 0, parent.getLimit).asInstanceOf[BaseAllocator]
@@ -118,7 +118,7 @@ object SparkMemoryUtils1 extends Logging{
       if (fileToAllocatorMap.containsKey(file)) {
         fileToAllocatorMap.get(file).asInstanceOf[BaseAllocator]
       } else {
-        val al = new ExecutionMemoryAllocationListener(getTaskMemoryManager())
+        val al = new ExecutionMemoryAllocationListener1(getTaskMemoryManager())
         val parent = org.apache.spark.sql.util.ArrowUtils.rootAllocator
         val newInstance = parent.newChildAllocator(file, al, 0,
           parent.getLimit).asInstanceOf[BaseAllocator]
