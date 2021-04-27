@@ -4,14 +4,11 @@ import java.util
 import java.util.UUID
 
 import org.apache.arrow.dataset.scanner.ScanTask
-import org.apache.arrow.memory.BaseAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.dictionary.Dictionary
 import org.apache.arrow.vector.types.pojo.DictionaryEncoding
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkMemoryUtils1}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils.{ExecutionMemoryAllocationListener, close, getLocalTaskContext, getTaskMemoryManager, softClose, taskToAllocatorMap}
-import org.apache.spark.util.TaskCompletionListener
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils1
 
 import scala.collection.mutable.HashMap
 
@@ -24,12 +21,10 @@ object DataCacheManager extends Logging {
   private val _data = new DataCacheManager
 
   def getVectorData(file: String): Option[List[ScanTask.ArrowBundledVectors]] = {
-    logError(s"-=-==-=-getVectorData , file = ${file}")
     _data.dataCacheManager.get(file)
   }
 
   def saveVectorData(file: String, vectorData: List[ScanTask.ArrowBundledVectors]): Unit = {
-    logError(s"-=-==-=-saveVectorData , file = ${file}")
     val vData = _data.dataCacheManager.get(file)
     val newVectorData = vectorData.map {
       x =>
@@ -37,16 +32,14 @@ object DataCacheManager extends Logging {
 
         import org.apache.arrow.vector.VectorUnloader
         val unloader = new VectorUnloader(oldValueVectors)
-        import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
         val recordBatch = unloader.getRecordBatch
 
 
         val new_root =
-          VectorSchemaRoot.create(oldValueVectors.getSchema, SparkMemoryUtils1.arrowAllocator(file))
+          VectorSchemaRoot.create(oldValueVectors.getSchema, SparkMemoryUtils1.arrowAllocator(file + UUID.randomUUID()))
         import org.apache.arrow.vector.VectorLoader
         val loader = new VectorLoader(new_root)
         loader.load(recordBatch)
-
 
 //        val newValueVectors = oldValueVectors.slice(0, oldValueVectors.getRowCount)
         val newDic = new util.HashMap[java.lang.Long, Dictionary]()
