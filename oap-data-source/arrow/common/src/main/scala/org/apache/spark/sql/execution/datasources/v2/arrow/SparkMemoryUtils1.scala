@@ -49,7 +49,10 @@ object SparkMemoryUtils1 extends Logging{
     }
 
     override def onRelease(size: Long): Unit = {
-      logError(s"==-=-==-=--=--called onRelease --- size = ${size}")
+
+      Thread.currentThread().getStackTrace.foreach( x => logError(s"${x.toString}"))
+
+      logError(s"==-=-==-=--=--called onRelease --- size = ${size}, stackTrace : ${}")
       freeMemory(size)
     }
 
