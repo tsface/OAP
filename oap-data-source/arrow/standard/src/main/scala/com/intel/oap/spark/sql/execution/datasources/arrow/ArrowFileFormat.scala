@@ -73,9 +73,8 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
 
     (file: PartitionedFile) => {
 
-
+      var usedCache = false
       val _dataList: Option[List[ScanTask.ArrowBundledVectors]] = DataCacheManager.getVectorData(file.filePath)
-
 
       val itr = _dataList match {
         case Some(_data) =>
@@ -89,6 +88,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
                 .append(" ; ")
           }
           logError(s"**********debugString = ${debugString.toString()}")
+          usedCache = true
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
           val factory = ArrowUtils.makeArrowDiscovery(
@@ -154,7 +154,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
 //        .flatMap(itr => itr.asScala)
 //        .map(vsr => ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema,
 //                requiredSchema))
-      new UnsafeItr(itr).asInstanceOf[Iterator[InternalRow]]
+      new UnsafeItr(itr,usedCache).asInstanceOf[Iterator[InternalRow]]
     }
   }
 
@@ -162,12 +162,14 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
 }
 
 object ArrowFileFormat {
-  class UnsafeItr[T](delegate: Iterator[ColumnarBatch])
+  class UnsafeItr[T](delegate: Iterator[ColumnarBatch], useCache: Boolean)
     extends Iterator[ColumnarBatch] {
     val holder = new ColumnarBatchRetainer()
 
     override def hasNext: Boolean = {
-      holder.release()
+      if(!useCache){
+        holder.release()
+      }
       val hasNext = delegate.hasNext
       hasNext
     }
