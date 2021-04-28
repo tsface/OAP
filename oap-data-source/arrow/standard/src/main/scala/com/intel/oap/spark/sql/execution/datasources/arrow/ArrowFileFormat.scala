@@ -73,22 +73,11 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
 
     (file: PartitionedFile) => {
 
-      var usedCache = false
       val _dataList: Option[List[ScanTask.ArrowBundledVectors]] = DataCacheManager.getVectorData(file.filePath)
 
       val itr = _dataList match {
         case Some(_data) =>
-          logError(s"-=-===load data from cache=-=-${_data}")
-          var debugString = new StringBuilder
-          _data.toIterator.map{
-            x =>
-              debugString.append("row count").append(" = ").append(x.valueVectors.getRowCount)
-                .append(" value size ").append(" = ")
-                .append(x.valueVectors.getVector(requiredSchema.fields.apply(0).name).getFieldBuffers.size())
-                .append(" ; ")
-          }
-          logError(s"**********debugString = ${debugString.toString()}")
-          usedCache = true
+          logError(s"-=-===load data from cache size =-=-${_data.size}")
           _data.toIterator.map(ArrowUtils.loadVectors(_, file.partitionValues, partitionSchema, requiredSchema))
         case None =>
           val factory = ArrowUtils.makeArrowDiscovery(
@@ -142,19 +131,12 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
                 ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema, requiredSchema)
             }
       }
-
-
-
-
-
-
-
 //      val itr = itrList
 //        .toIterator
 //        .flatMap(itr => itr.asScala)
 //        .map(vsr => ArrowUtils.loadVectors(vsr, file.partitionValues, partitionSchema,
 //                requiredSchema))
-      new UnsafeItr(itr,usedCache).asInstanceOf[Iterator[InternalRow]]
+      new UnsafeItr(itr).asInstanceOf[Iterator[InternalRow]]
     }
   }
 
@@ -162,23 +144,19 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
 }
 
 object ArrowFileFormat {
-  class UnsafeItr[T](delegate: Iterator[ColumnarBatch], useCache: Boolean)
+  class UnsafeItr[T](delegate: Iterator[ColumnarBatch])
     extends Iterator[ColumnarBatch] {
     val holder = new ColumnarBatchRetainer()
 
     override def hasNext: Boolean = {
-      if(!useCache){
-        holder.release()
-      }
+      holder.release()
       val hasNext = delegate.hasNext
       hasNext
     }
 
     override def next(): ColumnarBatch = {
       val b = delegate.next()
-      if(!useCache) {
-        holder.retain(b)
-      }
+      holder.retain(b)
       b
     }
   }

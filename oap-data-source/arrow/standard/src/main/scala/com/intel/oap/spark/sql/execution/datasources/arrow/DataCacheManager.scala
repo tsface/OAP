@@ -21,7 +21,34 @@ object DataCacheManager extends Logging {
   private val _data = new DataCacheManager
 
   def getVectorData(file: String): Option[List[ScanTask.ArrowBundledVectors]] = {
-    _data.dataCacheManager.get(file)
+    val vectorSchemaRootData = _data.dataCacheManager.get(file) match {
+      case Some(vectorData) =>
+        val _copy =vectorData.toIterator.map{
+          x =>
+            //build VectorSchemaRoot
+            val oldValueVectors = x.valueVectors
+            import org.apache.arrow.vector.VectorUnloader
+            val unloader = new VectorUnloader(oldValueVectors)
+            val recordBatch = unloader.getRecordBatch
+            val new_root =
+              VectorSchemaRoot.create(oldValueVectors.getSchema, SparkMemoryUtils1.arrowAllocator(file + UUID.randomUUID()))
+            import org.apache.arrow.vector.VectorLoader
+            val loader = new VectorLoader(new_root)
+            loader.load(recordBatch)
+            //build dictionary
+            val newDic = new util.HashMap[java.lang.Long, Dictionary]()
+            x.dictionaryVectors.forEach {
+              (k, v) =>
+                newDic.put(k, new Dictionary(null,
+                  new DictionaryEncoding(v.getEncoding.getId, v.getEncoding.isOrdered, v.getEncoding.getIndexType)))
+            }
+            new ScanTask.ArrowBundledVectors(new_root, newDic)
+        }.toList
+        Option(_copy)
+      case None =>
+        Option(List.empty)
+    }
+    vectorSchemaRootData
   }
 
   def saveVectorData(file: String, vectorData: List[ScanTask.ArrowBundledVectors]): Unit = {
