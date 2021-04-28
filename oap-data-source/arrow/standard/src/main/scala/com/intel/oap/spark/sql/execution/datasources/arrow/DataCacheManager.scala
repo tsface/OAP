@@ -46,7 +46,7 @@ object DataCacheManager extends Logging {
         }.toList
         Option(_copy)
       case None =>
-        Option(List.empty)
+        None
     }
     vectorSchemaRootData
   }
