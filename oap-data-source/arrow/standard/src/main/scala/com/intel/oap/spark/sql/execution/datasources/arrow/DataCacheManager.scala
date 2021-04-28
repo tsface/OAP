@@ -8,7 +8,7 @@ import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.dictionary.Dictionary
 import org.apache.arrow.vector.types.pojo.DictionaryEncoding
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils1
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkMemoryUtils1}
 
 import scala.collection.mutable.HashMap
 
@@ -31,7 +31,7 @@ object DataCacheManager extends Logging {
             val unloader = new VectorUnloader(oldValueVectors)
             val recordBatch = unloader.getRecordBatch
             val new_root =
-              VectorSchemaRoot.create(oldValueVectors.getSchema, SparkMemoryUtils1.arrowAllocator(file + UUID.randomUUID()))
+              VectorSchemaRoot.create(oldValueVectors.getSchema, SparkMemoryUtils.arrowAllocator())
             import org.apache.arrow.vector.VectorLoader
             val loader = new VectorLoader(new_root)
             loader.load(recordBatch)
