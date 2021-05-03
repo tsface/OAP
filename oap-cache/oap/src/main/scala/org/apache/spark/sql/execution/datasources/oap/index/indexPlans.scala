@@ -170,7 +170,7 @@ case class CreateIndexCommand(
     }
     val indexMeta = IndexMeta(indexName, time, null)
 
-    //Ensure that index columns are not case sensitive
+    // Ensure that index columns are not case sensitive
     val formatIndexColumns = indexColumns.map{
       ic =>
         schema.find(_.name.equalsIgnoreCase(ic.columnName)) match {
