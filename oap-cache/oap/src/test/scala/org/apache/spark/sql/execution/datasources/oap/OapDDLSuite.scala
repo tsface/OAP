@@ -279,6 +279,41 @@ class OapDDLSuite extends QueryTest with SharedOapContext with BeforeAndAfterEac
       }
     }
   }
+
+  test("Columns are not case sensitive, when create and drop index with orc file format") {
+    val data: Seq[(Int, Int)] = (1 to 10).map { i => (i, i) }
+    data.toDF("key", "value").createOrReplaceTempView("t")
+
+    sql(
+      """
+        |INSERT OVERWRITE TABLE orc_table_1
+        |partition (b=1, c='c1')
+        |SELECT key from t
+      """.stripMargin)
+
+    checkAnswer(sql("select * from orc_table_1 where a < 4"),
+      Row(1, 1, "c1") :: Row(2, 1, "c1") :: Row(3, 1, "c1") :: Nil)
+    sql("create oindex index1 on orc_table_1 (A) partition (b=1, c='c1')")
+    checkAnswer(sql("select * from orc_table_1 where a < 4"),
+      Row(1, 1, "c1") :: Row(2, 1, "c1") :: Row(3, 1, "c1") :: Nil)
+    sql("drop oindex index1 on orc_table_1")
+
+    // Test without index.
+    sql("insert overwrite table orc_table_2 select * from t")
+    checkAnswer(sql("select * from orc_table_2 where a < 4"),
+      Row(1, 1) :: Row(2, 2) :: Row(3, 3) :: Nil)
+    // Test btree index.
+    sql("create oindex index2 on orc_table_2 (A)")
+    checkAnswer(sql("select * from orc_table_2 where a < 4"),
+      Row(1, 1) :: Row(2, 2) :: Row(3, 3) :: Nil)
+    sql("drop oindex index2 on orc_table_2")
+
+    // Test bitmap index.
+    sql("create oindex index2 on orc_table_2 (A) using BITMAP")
+    checkAnswer(sql("select * from orc_table_2 where a == 4"),
+      Row(4, 4) :: Nil)
+    sql("drop oindex index2 on orc_table_2")
+  }
 //
 //  test("create index on partitions with diff locations when manageFilesourcePartitions disable") {
 //      withTable("test") {
