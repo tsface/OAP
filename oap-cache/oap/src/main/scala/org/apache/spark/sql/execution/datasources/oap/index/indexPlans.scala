@@ -60,7 +60,8 @@ case class CreateIndexCommand(
     partitions: Seq[PartitionDirectory],
     readerClassName: String,
     schema: StructType,
-    time: String): Seq[(DataSourceMetaBuilder, Path, Boolean)] = {
+    time: String,
+    formatIndexColumns: Array[IndexColumn]): Seq[(DataSourceMetaBuilder, Path, Boolean)] = {
     val configuration = sparkSession.sessionState.newHadoopConf()
     partitions.filter(_.files.nonEmpty).map(p => {
       val metaBuilder = new DataSourceMetaBuilder()
@@ -98,17 +99,17 @@ case class CreateIndexCommand(
 
       indexType match {
         case BTreeIndexType =>
-          val entries = indexColumns.map(c => {
+          val entries = formatIndexColumns.map(c => {
             val dir = if (c.isAscending) Ascending else Descending
             BTreeIndexEntry(schema.map(_.name).toIndexedSeq.indexOf(c.columnName), dir)
           })
           metaBuilder.addIndexMeta(new IndexMeta(indexName, time, BTreeIndex(entries)))
         case BitMapIndexType =>
           // Currently OAP index type supports the column with one single field.
-          if (indexColumns.length != 1) {
+          if (formatIndexColumns.length != 1) {
             throw new OapException("BitMapIndexType only supports one single column")
           }
-          val entries = indexColumns.map(col =>
+          val entries = formatIndexColumns.map(col =>
             schema.map(_.name).toIndexedSeq.indexOf(col.columnName))
           metaBuilder.addIndexMeta(new IndexMeta(indexName, time, BitMapIndex(entries)))
         case _ =>
@@ -169,9 +170,20 @@ case class CreateIndexCommand(
     }
     val indexMeta = IndexMeta(indexName, time, null)
 
+    //Ensure that index columns are not case sensitive
+    val formatIndexColumns = indexColumns.map{
+      ic =>
+        schema.find(_.name.equalsIgnoreCase(ic.columnName)) match {
+          case Some(structField) =>
+            ic.copy(columnName = structField.name)
+          case _ =>
+            ic
+        }
+    }
+
     val bAndP = buildPartitionMeta(sparkSession, identifier,
       partitions, readerClassName,
-      schema, time)
+      schema, time, formatIndexColumns)
     if (bAndP.isEmpty) {
       return Nil
     }
@@ -188,7 +200,7 @@ case class CreateIndexCommand(
         partitions,
         baseDir,
         partitionSchema,
-        indexColumns.toSeq,
+        formatIndexColumns.toSeq,
         indexType,
         indexMeta)
     }.groupBy(_.parent)
