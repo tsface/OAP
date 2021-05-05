@@ -302,6 +302,7 @@ class OapDDLSuite extends QueryTest with SharedOapContext with BeforeAndAfterEac
     sql("insert overwrite table orc_table_2 select * from t")
     checkAnswer(sql("select * from orc_table_2 where a < 4"),
       Row(1, 1) :: Row(2, 2) :: Row(3, 3) :: Nil)
+
     // Test btree index.
     sql("create oindex index2 on orc_table_2 (A)")
     checkAnswer(sql("select * from orc_table_2 where a < 4"),
